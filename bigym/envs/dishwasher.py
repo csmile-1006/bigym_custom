@@ -6,7 +6,10 @@ import numpy as np
 from bigym.bigym_env import BiGymEnv
 from bigym.const import PRESETS_PATH, HandSide
 from bigym.envs.props.dishwasher import Dishwasher
+from bigym.utils.physics_utils import get_joint_position
 
+
+SUBTASK_MAGNITUDE = 1.0
 
 class _DishwasherEnv(BiGymEnv, ABC):
     """Base dishwasher environment."""
@@ -23,20 +26,29 @@ class _DishwasherEnv(BiGymEnv, ABC):
         return self.robot.is_gripper_holding_object(obj, side)
 
     def _grasp_reward(self, side, obj):
-        return np.exp(-np.linalg.norm(self.robot.get_hand_pos(side) - obj.body.get_position()))
+        gripper_pos = self.robot._grippers[side].pinch_position
+        # obj_joint = get_joint_position(obj.joint, True)
+        obj_pos = obj.body.get_position()
+        return np.exp(-np.linalg.norm(gripper_pos - obj_pos))
 
-    def _position_reward(self, obj, val):
-        return np.exp(-np.linalg.norm(obj.body.get_position() - val))
+    def _joint_reward(self, obj, val=1.0):
+        obj_joint = get_joint_position(obj.joint, True)
+        return np.exp(-np.linalg.norm(obj_joint - val))
 
 
 class DishwasherOpen(_DishwasherEnv):
     """Open the dishwasher door and pull out all trays."""
+
+    def _initialize_env(self):
+        super()._initialize_env()
+        self._current_subtask = 0
 
     def _success(self) -> bool:
         return np.allclose(self.dishwasher.get_state(), 1, atol=self._TOLERANCE)
 
     def _on_reset(self):
         self.dishwasher.set_state(door=0, bottom_tray=0, middle_tray=0)
+        self._current_subtask = 0
 
     def _reward(self):
         dishwasher_joints = self.dishwasher.get_state()
@@ -47,27 +59,40 @@ class DishwasherOpen(_DishwasherEnv):
             self._grasp_reward(HandSide.LEFT, self.dishwasher.tray_middle),
         )
 
-        if tray_middle_pulled:
-            reward = 6.0
-        elif tray_bottom_pulled:
+        if self._success():
+            if self._current_subtask == 5:
+                self._current_subtask += 1
+            _reward = 0.0
+        elif tray_bottom_pulled and door_pulled:
+            if self._current_subtask == 3:
+                self._current_subtask += 1
             tray_middle_grasped = self._check_grasped(HandSide.LEFT, self.dishwasher.tray_middle)
-            if not tray_middle_grasped:
-                reward = 4.0 + grasp_tray_middle_reward
+            if not tray_middle_grasped and self._current_subtask == 4:
+                _reward = grasp_tray_middle_reward
             else:
-                reward = 5.0 + self._position_reward(self.dishwasher.tray_middle, 1.0)
+                if self._current_subtask == 4:
+                    self._current_subtask += 1
+                _reward = self._joint_reward(self.dishwasher.tray_middle)
         elif door_pulled:
+            if self._current_subtask == 1:
+                self._current_subtask += 1
             tray_bottom_grasped = self._check_grasped(HandSide.LEFT, self.dishwasher.tray_bottom)
-            if not tray_bottom_grasped:
-                reward = 2.0 + grasp_tray_bottom_reward
+            if not tray_bottom_grasped and self._current_subtask == 2:
+                _reward = grasp_tray_bottom_reward
             else:
-                reward = 3.0 + self._position_reward(self.dishwasher.tray_bottom, 1.0)
+                if self._current_subtask == 2:
+                    self._current_subtask += 1
+                _reward = self._joint_reward(self.dishwasher.tray_bottom)
         else:
             door_grasped = self._check_grasped(HandSide.LEFT, self.dishwasher.door)
-            if not door_grasped:
-                reward = grasp_door_reward
+            if not door_grasped and self._current_subtask == 0:
+                _reward = grasp_door_reward
             else:
-                reward = 1.0 + self._position_reward(self.dishwasher.door, 1.0)
+                if self._current_subtask == 0:
+                    self._current_subtask += 1
+                _reward = self._joint_reward(self.dishwasher.door)
 
+        reward = SUBTASK_MAGNITUDE * self._current_subtask + _reward
         return reward
 
 
