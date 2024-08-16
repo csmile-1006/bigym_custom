@@ -23,7 +23,7 @@ class _DishwasherEnv(BiGymEnv, ABC):
         return self.robot.is_gripper_holding_object(obj, side)
 
     def _grasp_reward(self, side, obj):
-        return np.exp(-np.linalg.norm(self.robot.get_hand_pos(hand_side) - obj.body.get_position()))
+        return np.exp(-np.linalg.norm(self.robot.get_hand_pos(side) - obj.body.get_position()))
 
     def _position_reward(self, obj, val):
         return np.exp(-np.linalg.norm(obj.body.get_position() - val))
