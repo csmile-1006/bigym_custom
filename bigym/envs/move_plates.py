@@ -12,6 +12,8 @@ from bigym.envs.props.kitchenware import Plate
 from bigym.envs.props.tables import Table
 from bigym.utils.physics_utils import distance
 
+from dm_control.utils import rewards
+
 
 RACK_BOUNDS = np.array([0.05, 0.05, 0])
 RACK_POSITION_LEFT = np.array([0.7, 0.3, 0.95])
@@ -84,6 +86,52 @@ class _MovePlatesEnv(BiGymEnv, ABC):
             quat *= PLATE_OFFSET_ROT
             plate.body.set_quaternion(quat.elements, True)
 
+    def _reward(self):
+        if self._success():
+            return 5.0 * self._PLATES_COUNT
+        else:
+            up = np.array([0, 0, 1])
+            right = np.array([0, -1, 0])
+
+            reward = 0.0
+            for plate in self.plates:
+                plate_grasped = np.any(
+                    [
+                        self.robot.is_gripper_holding_object(plate, side)
+                        for side in self.robot.grippers
+                    ]
+                )
+                plate_up = Quaternion(plate.body.get_quaternion()).rotate(up)
+                angle = np.arccos(np.clip(np.dot(plate_up, right), -1.0, 1.0))
+                if not plate_grasped:
+                    plate_grasp_reward = 0.0
+                    for side in self.robot.grippers:
+                        gripper_pos = self.robot.grippers[side].pinch_position
+                        obj_pos = plate.body.get_position()
+                        plate_grasp_reward += np.exp(
+                            -np.linalg.norm(gripper_pos - obj_pos)
+                        )
+                    plate_grasp_reward /= len(self.robot.grippers)
+                    reward += plate_grasp_reward
+                elif plate.is_colliding(self.table):
+                    reward += -1.0
+                else:
+                    plate_grasp_reward = 1.0
+                    plate_place_reward = np.max(
+                        [
+                            np.exp(-distance(plate.body, site))
+                            for site in self.rack_target.sites
+                        ]
+                    )
+                    plate_angle_reward = rewards.tolerance(
+                        angle, bounds=(0, self._SUCCESS_ROT), margin=0.3
+                    )
+                    reward += (
+                        plate_grasp_reward + plate_place_reward + plate_angle_reward
+                    )
+
+            return reward
+
 
 class MovePlate(_MovePlatesEnv):
     """Move one plate from one rack to another."""
@@ -103,7 +151,6 @@ class MovePlate(_MovePlatesEnv):
             "rack_pose": np.array(self.rack_target.get_pose(), np.float32).flatten(),
             "plate_pose": np.array(self.plates[0].get_pose(), np.float32).flatten(),
         }
-
 
 class MoveTwoPlates(_MovePlatesEnv):
     """Move two plates from one rack to another."""
