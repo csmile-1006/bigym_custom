@@ -6,7 +6,7 @@ from gymnasium import spaces
 from pyquaternion import Quaternion
 
 from bigym.bigym_env import BiGymEnv
-from bigym.const import PRESETS_PATH
+from bigym.const import PRESETS_PATH, HandSide
 from bigym.envs.props.holders import DishDrainer
 from bigym.envs.props.kitchenware import Plate
 from bigym.envs.props.tables import Table
@@ -95,22 +95,17 @@ class _MovePlatesEnv(BiGymEnv, ABC):
 
             reward = 0.0
             for plate in self.plates:
-                plate_grasped = np.any(
-                    [
-                        self.robot.is_gripper_holding_object(plate, side)
-                        for side in self.robot.grippers
-                    ]
+                plate_grasped = self.robot.is_gripper_holding_object(
+                    plate, HandSide.LEFT
                 )
                 plate_up = Quaternion(plate.body.get_quaternion()).rotate(up)
                 angle = np.arccos(np.clip(np.dot(plate_up, right), -1.0, 1.0))
                 if not plate_grasped:
                     plate_grasp_reward = 0.0
-                    for side in self.robot.grippers:
-                        gripper_pos = self.robot.grippers[side].pinch_position
-                        obj_pos = plate.body.get_position()
-                        plate_grasp_reward += np.exp(
-                            -np.linalg.norm(gripper_pos - obj_pos)
-                        )
+                    # for side in self.robot.grippers:
+                    gripper_pos = self.robot.grippers[HandSide.LEFT].pinch_position
+                    obj_pos = plate.body.get_position()
+                    plate_grasp_reward += np.exp(-np.linalg.norm(gripper_pos - obj_pos))
                     plate_grasp_reward /= len(self.robot.grippers)
                     reward += plate_grasp_reward
                 elif plate.is_colliding(self.table):
@@ -142,7 +137,7 @@ class MovePlate(_MovePlatesEnv):
                 low=-np.inf, high=np.inf, shape=(7,), dtype=np.float32
             ),
             "plate_pose": spaces.Box(
-                low=-np.inf, high=np.inf, shape=(3,), dtype=np.float32
+                low=-np.inf, high=np.inf, shape=(7,), dtype=np.float32
             ),
         }
 
