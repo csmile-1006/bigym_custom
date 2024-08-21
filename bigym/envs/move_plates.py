@@ -86,9 +86,40 @@ class _MovePlatesEnv(BiGymEnv, ABC):
             quat *= PLATE_OFFSET_ROT
             plate.body.set_quaternion(quat.elements, True)
 
+        self._prev_qvel = np.zeros_like(self._robot.qvel)
+
+    def _regularization_reward(self):
+        regularization_qvel = -0.002 * np.sum(np.square(self._robot.qvel))
+        # acceleration = (self._robot.qvel - self._prev_qvel) / 0.002
+        # regularization_acc = -0.000011 * np.sum(np.square(acceleration))
+        fail_penalty = -200.0 if self.fail else 0.0
+        not_healthy_penalty = -100.0 if self.truncate else 0.0
+        self._prev_qvel = self._robot.qvel
+        # print(
+        #     {
+        #         "regularization_qvel": regularization_qvel,
+        #         "regularization_acc": regularization_acc,
+        #         "fail_penalty": fail_penalty,
+        #         "not_healthy_penalty": not_healthy_penalty,
+        #     }
+        # )
+        return (
+            regularization_qvel
+            # + regularization_acc
+            + fail_penalty
+            + not_healthy_penalty
+        )
+        # return (
+        #     regularization_qpos
+        #     + regularization_qvel
+        #     + regularization_left_hand
+        #     + regularization_right_hand
+        # )
+
     def _reward(self):
+        SUBTASK_SOLVE_SCALE = 3.0
         if self._success():
-            return 5.0 * self._PLATES_COUNT
+            return 15.0 * self._PLATES_COUNT + self._regularization_reward()
         else:
             up = np.array([0, 0, 1])
             right = np.array([0, -1, 0])
@@ -105,27 +136,29 @@ class _MovePlatesEnv(BiGymEnv, ABC):
                     # for side in self.robot.grippers:
                     gripper_pos = self.robot.grippers[HandSide.LEFT].pinch_position
                     obj_pos = plate.body.get_position()
-                    plate_grasp_reward += np.exp(-np.linalg.norm(gripper_pos - obj_pos))
-                    plate_grasp_reward /= len(self.robot.grippers)
+                    plate_grasp_reward += SUBTASK_SOLVE_SCALE * np.exp(
+                        -np.linalg.norm(gripper_pos - obj_pos)
+                    )
+                    # plate_grasp_reward /= len(self.robot.grippers)
                     reward += plate_grasp_reward
                 elif plate.is_colliding(self.table):
-                    reward += -1.0
+                    reward += -100.0
                 else:
-                    plate_grasp_reward = 1.0
+                    plate_grasp_reward = SUBTASK_SOLVE_SCALE
                     plate_place_reward = np.max(
                         [
-                            np.exp(-distance(plate.body, site))
+                            SUBTASK_SOLVE_SCALE * np.exp(-distance(plate.body, site))
                             for site in self.rack_target.sites
                         ]
                     )
-                    plate_angle_reward = rewards.tolerance(
+                    plate_angle_reward = SUBTASK_SOLVE_SCALE * rewards.tolerance(
                         angle, bounds=(0, self._SUCCESS_ROT), margin=0.3
                     )
                     reward += (
                         plate_grasp_reward + plate_place_reward + plate_angle_reward
                     )
 
-            return reward
+            return reward + self._regularization_reward()
 
 
 class MovePlate(_MovePlatesEnv):
