@@ -185,12 +185,6 @@ class _MovePlatesEnv(BiGymEnv, ABC):
         reward_info["smoothness_reward"] = smoothness_reward
         self._prev_qvel = self._robot.qvel.copy()
 
-        # Penalize for being far from the origin (balance and efficiency)
-        distance_from_origin = np.linalg.norm(self.robot.pelvis.get_position())
-        balance_reward = -distance_from_origin
-        reward += balance_reward
-        reward_info["balance_reward"] = balance_reward
-
         # Penalize for large changes in joint angles (smoothness and efficiency)
         joint_change = np.linalg.norm(self._robot.qpos - self._prev_qpos)
         joint_smoothness_reward = -joint_change
@@ -199,7 +193,7 @@ class _MovePlatesEnv(BiGymEnv, ABC):
         self._prev_qpos = self._robot.qpos.copy()
 
         # Penalize termination by failure or truncation
-        fail_penalty = -200.0 if self.fail or plate.is_colliding(self.table) else 0.0
+        fail_penalty = -200.0 if self.fail else 0.0
         not_healthy_penalty = -100.0 if self.truncate else 0.0
         reward += fail_penalty + not_healthy_penalty
         reward_info["fail_penalty"] = fail_penalty
