@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <mujoco model="world">
-  <option integrator="implicitfast">
+  <option integrator="implicitfast" solver="PGS">
     <flag multiccd="enable"/>
   </option>
   <statistic center="0 0 1" extent="1.8"/>
