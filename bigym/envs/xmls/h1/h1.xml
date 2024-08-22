@@ -84,9 +84,9 @@
                 <inertial pos="0.06722 0.00015 -0.04497" quat="0.489101 0.503197 0.565782 0.432972" mass="0.446" diaginertia="0.00220848 0.00218961 0.000214202"/>
                 <joint name="left_ankle" axis="0 1 0" range="-0.87 0.52"/>
                 <geom class="visual" mesh="left_ankle_link"/>
-                <geom class="foot1" friction="1.5" solimp="0.95 0.99 0.001" solref="0.004 1" priority="1"/>
-                <geom class="foot2" friction="1.5" solimp="0.95 0.99 0.001" solref="0.004 1" priority="1"/>
-                <geom class="foot3" friction="1.5" solimp="0.95 0.99 0.001" solref="0.004 1" priority="1"/>
+                <geom class="foot1" friction="2.0" solimp="0.95 0.99 0.001" solref="0.004 1" priority="1"/>
+                <geom class="foot2" friction="2.0" solimp="0.95 0.99 0.001" solref="0.004 1" priority="1"/>
+                <geom class="foot3" friction="2.0" solimp="0.95 0.99 0.001" solref="0.004 1" priority="1"/>
               </body>
             </body>
           </body>
@@ -119,9 +119,9 @@
                 <inertial pos="0.06722 -0.00015 -0.04497" quat="0.432972 0.565782 0.503197 0.489101" mass="0.446" diaginertia="0.00220848 0.00218961 0.000214202"/>
                 <joint name="right_ankle" axis="0 1 0" range="-0.87 0.52"/>
                 <geom class="visual" mesh="right_ankle_link"/>
-                <geom class="foot1" friction="1.5" solimp="0.95 0.99 0.001" solref="0.004 1" priority="1"/>
-                <geom class="foot2" friction="1.5" solimp="0.95 0.99 0.001" solref="0.004 1" priority="1"/>
-                <geom class="foot3" friction="1.5" solimp="0.95 0.99 0.001" solref="0.004 1" priority="1"/>
+                <geom class="foot1" friction="2.0" solimp="0.95 0.99 0.001" solref="0.004 1" priority="1"/>
+                <geom class="foot2" friction="2.0" solimp="0.95 0.99 0.001" solref="0.004 1" priority="1"/>
+                <geom class="foot3" friction="2.0" solimp="0.95 0.99 0.001" solref="0.004 1" priority="1"/>
               </body>
             </body>
           </body>
